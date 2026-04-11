@@ -13,6 +13,7 @@ st.title("💰 Finance Master Dashboard")
 # =====================
 # 🌍 LIVE ECONOMIC DATA FUNCTION
 # =====================
+
 def get_economic_data():
     try:
         url = "https://api.tradingeconomics.com/indicators/country/india?c=guest:guest"
@@ -31,11 +32,18 @@ def get_economic_data():
             elif item["Category"] == "GDP Annual Growth Rate":
                 gdp = item["LatestValue"]
 
+        # fallback values
+        if repo is None:
+            repo = 6.5
+        if inflation is None:
+            inflation = 5.1
+        if gdp is None:
+            gdp = 6.7
+
         return repo, inflation, gdp
 
     except:
-        return None, None, None
-
+        return 6.5, 5.1, 6.7
 
 # =====================
 # LOAD DATA
