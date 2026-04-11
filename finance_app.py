@@ -185,7 +185,7 @@ if not df.empty:
         df = df.drop(delete_index)
         df.to_csv(FILE, index=False)
         st.warning("Deleted successfully!")
-        st.experimental_rerun()
+        st.rerun()
 
 else:
     st.info("No data yet")
