@@ -31,14 +31,7 @@ def get_economic_data():
             elif item["Category"] == "GDP Annual Growth Rate":
                 gdp = item["LatestValue"]
 
-        if repo is None:
-            repo = 6.5
-        if inflation is None:
-            inflation = 5.1
-        if gdp is None:
-            gdp = 6.7
-
-        return repo, inflation, gdp
+        return repo or 6.5, inflation or 5.1, gdp or 6.7
 
     except:
         return 6.5, 5.1, 6.7
@@ -47,10 +40,12 @@ def get_economic_data():
 # =====================
 # LOAD DATA
 # =====================
+columns = ["Date","Type","Category","SubType","Person","Amount","Interest","Description"]
+
 if os.path.exists(FILE):
     df = pd.read_csv(FILE)
 else:
-    df = pd.DataFrame(columns=["Date","Type","Category","SubType","Person","Amount","Interest","Description"])
+    df = pd.DataFrame(columns=columns)
 
 # =====================
 # ADD ENTRY
@@ -68,7 +63,6 @@ with st.form("entry_form"):
         amount = st.number_input("Amount", min_value=1)
         interest = st.number_input("Interest %", min_value=0)
 
-    # ✅ PETROL ADDED
     category = st.selectbox("Category",
         ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Other"])
 
@@ -79,22 +73,30 @@ with st.form("entry_form"):
     submitted = st.form_submit_button("Add")
 
     if submitted:
-        new = pd.DataFrame([[date,type_,category,subtype,person,amount,interest,desc]],
-                           columns=df.columns)
+        new = pd.DataFrame([{
+            "Date": date,
+            "Type": type_,
+            "Category": category,
+            "SubType": subtype,
+            "Person": person,
+            "Amount": amount,
+            "Interest": interest,
+            "Description": desc
+        }])
+
         df = pd.concat([df,new],ignore_index=True)
         df.to_csv(FILE,index=False)
         st.success("✅ Added")
 
 
 # =====================
-# 🌍 LIVE ECONOMIC DATA DISPLAY
+# 🌍 LIVE ECONOMIC DATA
 # =====================
 st.subheader("🌍 Live Economic Data (India)")
 
 repo, inflation, gdp = get_economic_data()
 
 colA, colB, colC = st.columns(3)
-
 colA.metric("🏦 Repo Rate", f"{repo}%")
 colB.metric("📈 Inflation", f"{inflation}%")
 colC.metric("📊 GDP Growth", f"{gdp}%")
@@ -172,11 +174,8 @@ if not df.empty:
     st.dataframe(borrow_df[["Person","Amount","Interest","InterestAmount"]])
 
     # =====================
-    # 📋 ALL DATA + DELETE
+    # DELETE ENTRY
     # =====================
-    st.subheader("📋 All Data")
-    st.dataframe(df)
-
     st.subheader("🗑️ Delete Entry")
 
     delete_index = st.selectbox("Select row to delete", df.index)
@@ -184,8 +183,12 @@ if not df.empty:
     if st.button("Delete Selected Entry"):
         df = df.drop(delete_index)
         df.to_csv(FILE, index=False)
-        st.warning("Deleted successfully!")
+        st.success("Deleted successfully!")
         st.rerun()
+
+    st.subheader("📋 All Data")
+    st.dataframe(df)
 
 else:
     st.info("No data yet")
+
