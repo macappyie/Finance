@@ -7,6 +7,9 @@ import requests
 # =====================
 # 🔐 SIMPLE LOGIN SYSTEM
 # =====================
+# =====================
+# 🔐 LOGIN SYSTEM
+# =====================
 users = {
     "yogesh": "1234",
     "rahul": "1234",
@@ -25,12 +28,13 @@ def login():
             st.success("Login successful")
             st.rerun()
         else:
-            st.error("Invalid credentials")
+            st.error("Invalid username or password")
 
 # check login
 if "user" not in st.session_state:
     login()
     st.stop()
+
 
 # user specific file
 FILE = f"{st.session_state['user']}_data.csv"
