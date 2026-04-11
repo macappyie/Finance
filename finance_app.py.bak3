@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
-import requests
 
 FILE = "finance_data.csv"
 
@@ -10,36 +9,7 @@ st.set_page_config(page_title="Finance Master Dashboard", layout="wide")
 
 st.title("💰 Finance Master Dashboard")
 
-# =====================
-# 🌍 LIVE ECONOMIC DATA FUNCTION
-# =====================
-def get_economic_data():
-    try:
-        url = "https://api.tradingeconomics.com/indicators/country/india?c=guest:guest"
-        res = requests.get(url, timeout=5)
-        data = res.json()
-
-        repo = None
-        inflation = None
-        gdp = None
-
-        for item in data:
-            if item["Category"] == "Interest Rate":
-                repo = item["LatestValue"]
-            elif item["Category"] == "Inflation Rate":
-                inflation = item["LatestValue"]
-            elif item["Category"] == "GDP Annual Growth Rate":
-                gdp = item["LatestValue"]
-
-        return repo, inflation, gdp
-
-    except:
-        return None, None, None
-
-
-# =====================
-# LOAD DATA
-# =====================
+# Load data
 if os.path.exists(FILE):
     df = pd.read_csv(FILE)
 else:
@@ -70,26 +40,12 @@ with st.form("entry_form"):
 
     submitted = st.form_submit_button("Add")
 
-
     if submitted:
         new = pd.DataFrame([[date,type_,category,subtype,person,amount,interest,desc]],
                            columns=df.columns)
         df = pd.concat([df,new],ignore_index=True)
         df.to_csv(FILE,index=False)
         st.success("✅ Added")
-
-# =====================
-# 🌍 LIVE ECONOMIC DATA DISPLAY
-# =====================
-st.subheader("🌍 Live Economic Data (India)")
-
-repo, inflation, gdp = get_economic_data()
-
-colA, colB, colC = st.columns(3)
-
-colA.metric("🏦 Repo Rate", f"{repo if repo else 'N/A'}%")
-colB.metric("📈 Inflation", f"{inflation if inflation else 'N/A'}%")
-colC.metric("📊 GDP Growth", f"{gdp if gdp else 'N/A'}%")
 
 # =====================
 # DASHBOARD
@@ -189,4 +145,3 @@ if not df.empty:
 
 else:
     st.info("No data yet")
-
