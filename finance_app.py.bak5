@@ -50,10 +50,6 @@ else:
 # =====================
 # ADD ENTRY
 # =====================
-
-# =====================
-# ADD ENTRY
-# =====================
 st.subheader("➕ Add Entry")
 
 with st.form("entry_form"):
@@ -67,30 +63,8 @@ with st.form("entry_form"):
         amount = st.number_input("Amount", min_value=1)
         interest = st.number_input("Interest %", min_value=0)
 
-    # =====================
-    # 🔥 DYNAMIC CATEGORY SYSTEM
-    # =====================
-    default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Other"]
-
-    if not df.empty:
-        existing_categories = df["Category"].dropna().unique().tolist()
-    else:
-        existing_categories = []
-
-    all_categories = list(set(default_categories + existing_categories))
-    all_categories.sort()
-
-    category_option = st.selectbox("Category", all_categories + ["➕ Add New Category"])
-
-    if category_option == "➕ Add New Category":
-        new_category = st.text_input("Enter New Category")
-
-        if new_category:
-            category = new_category
-        else:
-            category = "Other"
-    else:
-        category = category_option
+    category = st.selectbox("Category",
+        ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Other"])
 
     subtype = st.text_input("Sub-Type (Axis / LIC / Post Office etc.)")
     person = st.text_input("Person (for lending/borrow)")
