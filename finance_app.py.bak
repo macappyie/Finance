@@ -1,0 +1,103 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import os
+
+FILE = "finance_data.csv"
+
+st.set_page_config(page_title="Finance Dashboard", layout="wide")
+
+st.title("💰 Personal Finance Dashboard (Pro)")
+
+# Load data
+if os.path.exists(FILE):
+    df = pd.read_csv(FILE)
+else:
+    df = pd.DataFrame(columns=["Date", "Type", "Category", "SubType", "Person", "Amount", "Interest", "Description"])
+
+# ➕ Add Entry
+st.subheader("➕ Add Entry")
+
+with st.form("entry_form"):
+    col1, col2 = st.columns(2)
+
+    with col1:
+        date = st.date_input("Date")
+        type_ = st.selectbox("Type", ["Expense", "Income", "EMI", "Lending"])
+
+    with col2:
+        amount = st.number_input("Amount", min_value=1)
+        interest = st.number_input("Interest % (for lending)", min_value=0)
+
+    category = st.selectbox("Category", ["Food", "Travel", "Shopping", "Bills", "EMI", "Salary", "Trading", "Lending"])
+
+    subtype = st.text_input("Sub-Type (Axis / Bajaj / SBI etc.)")
+    person = st.text_input("Person Name (for lending)")
+    desc = st.text_input("Description")
+
+    submitted = st.form_submit_button("Add")
+
+    if submitted:
+        new = pd.DataFrame([[date, type_, category, subtype, person, amount, interest, desc]],
+                           columns=df.columns)
+        df = pd.concat([df, new], ignore_index=True)
+        df.to_csv(FILE, index=False)
+        st.success("✅ Added successfully")
+
+# 📊 Dashboard
+st.subheader("📊 Dashboard")
+
+if not df.empty:
+    df["Date"] = pd.to_datetime(df["Date"])
+
+    # EMI total
+    emi_total = df[df["Type"] == "EMI"]["Amount"].sum()
+
+    # Expense total
+    expense_total = df[df["Type"] == "Expense"]["Amount"].sum()
+
+    # Income total
+    income_total = df[df["Type"] == "Income"]["Amount"].sum()
+
+    # Lending interest calc
+    lending_df = df[df["Type"] == "Lending"]
+    lending_df["InterestAmount"] = (lending_df["Amount"] * lending_df["Interest"]) / 100
+
+    interest_income = lending_df["InterestAmount"].sum()
+
+    # KPIs
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("💸 Expenses", f"₹{expense_total}")
+    col2.metric("🏦 EMI Load", f"₹{emi_total}")
+    col3.metric("💰 Income", f"₹{income_total}")
+    col4.metric("📈 Interest Income", f"₹{int(interest_income)}")
+
+    # Pie chart
+    col1, col2 = st.columns(2)
+
+    with col1:
+        pie = px.pie(df[df["Type"].isin(["Expense", "EMI"])],
+                     names="Category",
+                     values="Amount",
+                     title="Expense + EMI Breakdown")
+        st.plotly_chart(pie, use_container_width=True)
+
+    # Monthly chart
+    with col2:
+        df["Month"] = df["Date"].dt.to_period("M").astype(str)
+        monthly = df.groupby(["Month", "Type"])["Amount"].sum().reset_index()
+
+        bar = px.bar(monthly, x="Month", y="Amount", color="Type",
+                     title="Monthly Financial Flow")
+        st.plotly_chart(bar, use_container_width=True)
+
+    # Lending table
+    st.subheader("👥 Lending Tracker")
+    st.dataframe(lending_df[["Person", "Amount", "Interest", "InterestAmount"]])
+
+    # Full table
+    st.subheader("📋 All Data")
+    st.dataframe(df)
+
+else:
+    st.info("No data yet")
