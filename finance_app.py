@@ -4,51 +4,14 @@ import plotly.express as px
 import os
 import requests
 
-# =====================
-# 🔐 SIMPLE LOGIN SYSTEM
-# =====================
-# =====================
-# 🔐 LOGIN SYSTEM
-# =====================
-users = {
-    "yogesh": "1234",
-    "rahul": "1234",
-    "amit": "1234"
-}
-
-def login():
-    st.title("🔐 Login")
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        if username in users and users[username] == password:
-            st.session_state["user"] = username
-            st.success("Login successful")
-            st.rerun()
-        else:
-            st.error("Invalid username or password")
-
-# check login
-if "user" not in st.session_state:
-    login()
-    st.stop()
-
-
-# user specific file
-FILE = f"{st.session_state['user']}_data.csv"
-
-# logout button
-if st.sidebar.button("Logout"):
-    del st.session_state["user"]
-    st.rerun()
+FILE = "finance_data.csv"
 
 st.set_page_config(page_title="Finance Master Dashboard", layout="wide")
-st.title(f"💰 Finance Dashboard - {st.session_state['user']}")
+
+st.title("💰 Finance Master Dashboard")
 
 # =====================
-# 🌍 ECONOMIC DATA
+# 🌍 LIVE ECONOMIC DATA FUNCTION
 # =====================
 def get_economic_data():
     try:
@@ -73,6 +36,7 @@ def get_economic_data():
     except:
         return 6.5, 5.1, 6.7
 
+
 # =====================
 # LOAD DATA
 # =====================
@@ -82,6 +46,10 @@ if os.path.exists(FILE):
     df = pd.read_csv(FILE)
 else:
     df = pd.DataFrame(columns=columns)
+
+# =====================
+# ADD ENTRY
+# =====================
 
 # =====================
 # ADD ENTRY
@@ -99,22 +67,33 @@ with st.form("entry_form"):
         amount = st.number_input("Amount", min_value=1)
         interest = st.number_input("Interest %", min_value=0)
 
-    # dynamic category
+    # =====================
+    # 🔥 DYNAMIC CATEGORY SYSTEM
+    # =====================
     default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Other"]
 
-    existing_categories = df["Category"].dropna().unique().tolist() if not df.empty else []
-    all_categories = sorted(list(set(default_categories + existing_categories)))
+    if not df.empty:
+        existing_categories = df["Category"].dropna().unique().tolist()
+    else:
+        existing_categories = []
+
+    all_categories = list(set(default_categories + existing_categories))
+    all_categories.sort()
 
     category_option = st.selectbox("Category", all_categories + ["➕ Add New Category"])
 
     if category_option == "➕ Add New Category":
         new_category = st.text_input("Enter New Category")
-        category = new_category if new_category else "Other"
+
+        if new_category:
+            category = new_category
+        else:
+            category = "Other"
     else:
         category = category_option
 
-    subtype = st.text_input("Sub-Type")
-    person = st.text_input("Person")
+    subtype = st.text_input("Sub-Type (Axis / LIC / Post Office etc.)")
+    person = st.text_input("Person (for lending/borrow)")
     desc = st.text_input("Description")
 
     submitted = st.form_submit_button("Add")
@@ -135,17 +114,18 @@ with st.form("entry_form"):
         df.to_csv(FILE,index=False)
         st.success("✅ Added")
 
+
 # =====================
-# ECONOMIC DATA
+# 🌍 LIVE ECONOMIC DATA
 # =====================
-st.subheader("🌍 Live Economic Data")
+st.subheader("🌍 Live Economic Data (India)")
 
 repo, inflation, gdp = get_economic_data()
 
-c1,c2,c3 = st.columns(3)
-c1.metric("Repo Rate", f"{repo}%")
-c2.metric("Inflation", f"{inflation}%")
-c3.metric("GDP", f"{gdp}%")
+colA, colB, colC = st.columns(3)
+colA.metric("🏦 Repo Rate", f"{repo}%")
+colB.metric("📈 Inflation", f"{inflation}%")
+colC.metric("📊 GDP Growth", f"{gdp}%")
 
 # =====================
 # DASHBOARD
@@ -155,27 +135,85 @@ st.subheader("📊 Dashboard")
 if not df.empty:
     df["Date"] = pd.to_datetime(df["Date"])
 
-    expense = df[df["Type"]=="Expense"]["Amount"].sum()
-    emi = df[df["Type"]=="EMI"]["Amount"].sum()
-    invest = df[df["Type"]=="Investment"]["Amount"].sum()
-    income = df[df["Type"]=="Income"]["Amount"].sum()
+    expense_total = df[df["Type"]=="Expense"]["Amount"].sum()
+    emi_total = df[df["Type"]=="EMI"]["Amount"].sum()
+    investment_total = df[df["Type"]=="Investment"]["Amount"].sum()
+    income_total = df[df["Type"]=="Income"]["Amount"].sum()
 
-    balance = income - (expense + emi + invest)
+    lending_df = df[df["Type"]=="Lending"].copy()
+    lending_df["InterestAmount"] = (lending_df["Amount"]*lending_df["Interest"])/100
+    interest_income = lending_df["InterestAmount"].sum()
 
-    st.metric("Balance", f"₹{int(balance)}")
+    borrow_df = df[df["Type"]=="Borrow"].copy()
+    borrow_df["InterestAmount"] = (borrow_df["Amount"]*borrow_df["Interest"])/100
+    borrow_total = borrow_df["Amount"].sum()
+
+    balance = income_total + interest_income - (expense_total + emi_total + investment_total + borrow_total)
+
+    if emi_total > 60000:
+        st.error("⚠️ EMI HIGH > 60k")
+
+    if balance < 0:
+        st.warning("⚠️ LOSS चल रहा है")
+
+    col1,col2,col3,col4,col5 = st.columns(5)
+    col1.metric("💸 Expense", f"₹{expense_total}")
+    col2.metric("🏦 EMI", f"₹{emi_total}")
+    col3.metric("📈 Investment", f"₹{investment_total}")
+    col4.metric("💰 Income", f"₹{income_total}")
+    col5.metric("📊 Balance", f"₹{int(balance)}")
+
+    col1,col2 = st.columns(2)
+
+    with col1:
+        pie = px.pie(df[df["Type"].isin(["Expense","EMI","Investment"])],
+                     names="Category", values="Amount",
+                     title="Money Distribution")
+        st.plotly_chart(pie,use_container_width=True)
+
+    with col2:
+        df["Month"] = df["Date"].dt.to_period("M").astype(str)
+        monthly = df.groupby(["Month","Type"])["Amount"].sum().reset_index()
+
+        bar = px.bar(monthly,x="Month",y="Amount",color="Type",
+                     title="Monthly Flow")
+        st.plotly_chart(bar,use_container_width=True)
+
+    if income_total > 0:
+        expense_pct = (expense_total/income_total)*100
+        emi_pct = (emi_total/income_total)*100
+        invest_pct = (investment_total/income_total)*100
+
+        pct_df = pd.DataFrame({
+            "Category":["Expense","EMI","Investment"],
+            "Percentage":[expense_pct,emi_pct,invest_pct]
+        })
+
+        st.subheader("📊 Income Usage %")
+        pct_chart = px.bar(pct_df,x="Category",y="Percentage",text="Percentage")
+        st.plotly_chart(pct_chart,use_container_width=True)
+
+    st.subheader("👥 Lending")
+    st.dataframe(lending_df[["Person","Amount","Interest","InterestAmount"]])
+
+    st.subheader("💳 Borrow")
+    st.dataframe(borrow_df[["Person","Amount","Interest","InterestAmount"]])
+
+    # =====================
+    # DELETE ENTRY
+    # =====================
+    st.subheader("🗑️ Delete Entry")
+
+    delete_index = st.selectbox("Select row to delete", df.index)
+
+    if st.button("Delete Selected Entry"):
+        df = df.drop(delete_index)
+        df.to_csv(FILE, index=False)
+        st.success("Deleted successfully!")
+        st.rerun()
 
     st.subheader("📋 All Data")
     st.dataframe(df)
-
-    # delete
-    st.subheader("🗑️ Delete Entry")
-    idx = st.selectbox("Select row", df.index)
-
-    if st.button("Delete"):
-        df = df.drop(idx)
-        df.to_csv(FILE,index=False)
-        st.success("Deleted")
-        st.rerun()
 
 else:
     st.info("No data yet")
