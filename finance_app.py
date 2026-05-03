@@ -243,35 +243,27 @@ else:
 
 
 # =====================
-# 🗑️ DELETE ENTRY (IMPROVED UI)
+# 🗑️ DELETE ENTRY FIXED
 # =====================
 st.subheader("🗑️ Delete Entry")
 
 if not df.empty:
 
-    # Readable dropdown (date + category + amount)
+    df["Date_str"] = df["Date"].astype(str)
+
     delete_options = df.apply(
-        lambda x: f"{x['Date']} | {x['Category']} | ₹{x['Amount']}", axis=1
+        lambda x: f"{x['Date_str']} | {x['Category']} | ₹{x['Amount']}", axis=1
     )
 
     selected_entry = st.selectbox("Select Entry to Delete", delete_options)
 
     if st.button("❌ Delete Selected Entry"):
 
-        # Extract values
-        date_val = selected_entry.split(" | ")[0]
-        category_val = selected_entry.split(" | ")[1]
-        amount_val = float(selected_entry.split(" | ₹")[1])
+        selected_index = delete_options[delete_options == selected_entry].index
 
-        # Find index
-        index = df[
-            (df["Date"].astype(str) == date_val) &
-            (df["Category"] == category_val) &
-            (df["Amount"] == amount_val)
-        ].index
-
-        if len(index) > 0:
-            df = df.drop(index[0])
+        if len(selected_index) > 0:
+            df = df.drop(selected_index[0])
+            df = df.drop(columns=["Date_str"])
             df.to_csv(FILE, index=False)
             st.success("✅ Entry Deleted")
             st.rerun()
@@ -280,4 +272,3 @@ if not df.empty:
 
 else:
     st.info("No data to delete")
-
