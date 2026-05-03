@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import os
 import requests
+from datetime import datetime
 
 FILE = "finance_data.csv"
 
@@ -11,7 +12,7 @@ st.set_page_config(page_title="Finance Master Dashboard", layout="wide")
 st.title("💰 Finance Master Dashboard")
 
 # =====================
-# 🌍 LIVE ECONOMIC DATA FUNCTION
+# 🌍 LIVE ECONOMIC DATA
 # =====================
 def get_economic_data():
     try:
@@ -19,9 +20,7 @@ def get_economic_data():
         res = requests.get(url, timeout=5)
         data = res.json()
 
-        repo = None
-        inflation = None
-        gdp = None
+        repo = inflation = gdp = None
 
         for item in data:
             if item["Category"] == "Interest Rate":
@@ -32,7 +31,6 @@ def get_economic_data():
                 gdp = item["LatestValue"]
 
         return repo or 6.5, inflation or 5.1, gdp or 6.7
-
     except:
         return 6.5, 5.1, 6.7
 
@@ -63,7 +61,6 @@ with st.form("entry_form"):
         amount = st.number_input("Amount", min_value=1)
         interest = st.number_input("Interest %", min_value=0)
 
-    # 🔥 UPDATED CATEGORY (Business added)
     default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Business","Other"]
 
     if not df.empty:
@@ -82,8 +79,8 @@ with st.form("entry_form"):
     else:
         category = category_option
 
-    subtype = st.text_input("Sub-Type (Axis / LIC / Post Office etc.)")
-    person = st.text_input("Person (for lending/borrow)")
+    subtype = st.text_input("Sub-Type")
+    person = st.text_input("Person")
     desc = st.text_input("Description")
 
     submitted = st.form_submit_button("Add")
@@ -105,16 +102,15 @@ with st.form("entry_form"):
         st.success("✅ Added")
 
 # =====================
-# 🌍 LIVE ECONOMIC DATA
+# ECONOMIC DATA
 # =====================
 st.subheader("🌍 Live Economic Data (India)")
-
 repo, inflation, gdp = get_economic_data()
 
-colA, colB, colC = st.columns(3)
-colA.metric("🏦 Repo Rate", f"{repo}%")
-colB.metric("📈 Inflation", f"{inflation}%")
-colC.metric("📊 GDP Growth", f"{gdp}%")
+c1,c2,c3 = st.columns(3)
+c1.metric("Repo Rate", f"{repo}%")
+c2.metric("Inflation", f"{inflation}%")
+c3.metric("GDP Growth", f"{gdp}%")
 
 # =====================
 # DASHBOARD
@@ -122,112 +118,126 @@ colC.metric("📊 GDP Growth", f"{gdp}%")
 st.subheader("📊 Dashboard")
 
 if not df.empty:
+
     df["Date"] = pd.to_datetime(df["Date"])
 
-    expense_total = df[df["Type"]=="Expense"]["Amount"].sum()
-    emi_total = df[df["Type"]=="EMI"]["Amount"].sum()
-    investment_total = df[df["Type"]=="Investment"]["Amount"].sum()
-    income_total = df[df["Type"]=="Income"]["Amount"].sum()
+    # =====================
+    # FILTERS
+    # =====================
+    st.subheader("🔍 Filters")
 
-    lending_df = df[df["Type"]=="Lending"].copy()
-    lending_df["InterestAmount"] = (lending_df["Amount"]*lending_df["Interest"])/100
-    interest_income = lending_df["InterestAmount"].sum()
+    col1, col2 = st.columns(2)
+    start_date = col1.date_input("Start Date", df["Date"].min())
+    end_date = col2.date_input("End Date", df["Date"].max())
 
-    borrow_df = df[df["Type"]=="Borrow"].copy()
-    borrow_df["InterestAmount"] = (borrow_df["Amount"]*borrow_df["Interest"])/100
-    borrow_total = borrow_df["Amount"].sum()
+    category_filter = st.multiselect(
+        "Category",
+        options=df["Category"].unique(),
+        default=df["Category"].unique()
+    )
 
-    balance = income_total + interest_income - (expense_total + emi_total + investment_total + borrow_total)
-
-    if emi_total > 60000:
-        st.error("⚠️ EMI HIGH > 60k")
-
-    if balance < 0:
-        st.warning("⚠️ LOSS चल रहा है")
-
-    col1,col2,col3,col4,col5 = st.columns(5)
-    col1.metric("💸 Expense", f"₹{expense_total}")
-    col2.metric("🏦 EMI", f"₹{emi_total}")
-    col3.metric("📈 Investment", f"₹{investment_total}")
-    col4.metric("💰 Income", f"₹{income_total}")
-    col5.metric("📊 Balance", f"₹{int(balance)}")
+    filtered_df = df[
+        (df["Date"] >= pd.to_datetime(start_date)) &
+        (df["Date"] <= pd.to_datetime(end_date)) &
+        (df["Category"].isin(category_filter))
+    ]
 
     # =====================
-    # 💼 BUSINESS / TRADING SUMMARY
+    # MONTH CALCULATIONS
     # =====================
-    st.subheader("💼 Trading / Business Summary")
+    today = datetime.today()
 
-    business_income = df[
-        (df["Type"]=="Income") &
-        (df["Category"].isin(["Business","Trading"]))
-    ]["Amount"].sum()
+    current_month_df = df[
+        (df["Date"].dt.month == today.month) &
+        (df["Date"].dt.year == today.year)
+    ]
 
-    business_loss = df[
-        (df["Type"]=="Expense") &
-        (df["Category"].isin(["Business","Trading"]))
-    ]["Amount"].sum()
+    last_month = today.month - 1 if today.month > 1 else 12
+    year = today.year if today.month > 1 else today.year - 1
 
-    net_business = business_income - business_loss
+    last_month_df = df[
+        (df["Date"].dt.month == last_month) &
+        (df["Date"].dt.year == year)
+    ]
 
-    b1, b2, b3 = st.columns(3)
-    b1.metric("💰 Business Profit", f"₹{business_income}")
-    b2.metric("📉 Business Loss", f"₹{business_loss}")
-    b3.metric("📊 Net Business", f"₹{net_business}")
+    current_month_expense = current_month_df[current_month_df["Type"]=="Expense"]["Amount"].sum()
+    last_month_expense = last_month_df[last_month_df["Type"]=="Expense"]["Amount"].sum()
 
-    # =====================
-    # CHARTS
-    # =====================
-    col1,col2 = st.columns(2)
-
-    with col1:
-        pie = px.pie(df[df["Type"].isin(["Expense","EMI","Investment"])],
-                     names="Category", values="Amount",
-                     title="Money Distribution")
-        st.plotly_chart(pie,use_container_width=True)
-
-    with col2:
-        df["Month"] = df["Date"].dt.to_period("M").astype(str)
-        monthly = df.groupby(["Month","Type"])["Amount"].sum().reset_index()
-
-        bar = px.bar(monthly,x="Month",y="Amount",color="Type",
-                     title="Monthly Flow")
-        st.plotly_chart(bar,use_container_width=True)
-
-    if income_total > 0:
-        expense_pct = (expense_total/income_total)*100
-        emi_pct = (emi_total/income_total)*100
-        invest_pct = (investment_total/income_total)*100
-
-        pct_df = pd.DataFrame({
-            "Category":["Expense","EMI","Investment"],
-            "Percentage":[expense_pct,emi_pct,invest_pct]
-        })
-
-        st.subheader("📊 Income Usage %")
-        pct_chart = px.bar(pct_df,x="Category",y="Percentage",text="Percentage")
-        st.plotly_chart(pct_chart,use_container_width=True)
-
-    st.subheader("👥 Lending")
-    st.dataframe(lending_df[["Person","Amount","Interest","InterestAmount"]])
-
-    st.subheader("💳 Borrow")
-    st.dataframe(borrow_df[["Person","Amount","Interest","InterestAmount"]])
+    m1, m2 = st.columns(2)
+    m1.metric("📅 Current Month Expense", f"₹{int(current_month_expense)}")
+    m2.metric("📅 Last Month Expense", f"₹{int(last_month_expense)}")
 
     # =====================
-    # DELETE ENTRY
+    # MAIN METRICS
     # =====================
-    st.subheader("🗑️ Delete Entry")
+    expense_total = filtered_df[filtered_df["Type"]=="Expense"]["Amount"].sum()
+    income_total = filtered_df[filtered_df["Type"]=="Income"]["Amount"].sum()
+    emi_total = filtered_df[filtered_df["Type"]=="EMI"]["Amount"].sum()
+    investment_total = filtered_df[filtered_df["Type"]=="Investment"]["Amount"].sum()
 
-    delete_index = st.selectbox("Select row to delete", df.index)
+    balance = income_total - (expense_total + emi_total + investment_total)
 
-    if st.button("Delete Selected Entry"):
-        df = df.drop(delete_index)
-        df.to_csv(FILE, index=False)
-        st.success("Deleted successfully!")
-        st.rerun()
+    c1,c2,c3,c4,c5 = st.columns(5)
+    c1.metric("Expense", f"₹{int(expense_total)}")
+    c2.metric("Income", f"₹{int(income_total)}")
+    c3.metric("EMI", f"₹{int(emi_total)}")
+    c4.metric("Investment", f"₹{int(investment_total)}")
+    c5.metric("Balance", f"₹{int(balance)}")
 
-    st.subheader("📋 All Data")
-    st.dataframe(df)
+    # =====================
+    # LIFETIME VIEW
+    # =====================
+    st.subheader("📅 50 Years / Lifetime Analysis")
+
+    df["Year"] = df["Date"].dt.year
+    years = sorted(df["Year"].unique())
+
+    selected_year = st.selectbox("Select Year", ["All Time"] + list(years))
+
+    if selected_year == "All Time":
+        year_df = df.copy()
+    else:
+        year_df = df[df["Year"] == selected_year]
+
+    total_expense_all = df[df["Type"]=="Expense"]["Amount"].sum()
+    st.metric("💸 Total Lifetime Expense", f"₹{int(total_expense_all)}")
+
+    # =====================
+    # YEARLY CHART
+    # =====================
+    yearly = df[df["Type"]=="Expense"].groupby("Year")["Amount"].sum().reset_index()
+    fig1 = px.bar(yearly, x="Year", y="Amount", title="Yearly Expense")
+    st.plotly_chart(fig1, use_container_width=True)
+
+    # =====================
+    # MONTHLY
+    # =====================
+    year_df["Month"] = year_df["Date"].dt.to_period("M").astype(str)
+    monthly = year_df.groupby("Month")["Amount"].sum().reset_index()
+
+    fig2 = px.bar(monthly, x="Month", y="Amount", title="Monthly Flow")
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # =====================
+    # CATEGORY
+    # =====================
+    cat = year_df[year_df["Type"]=="Expense"].groupby("Category")["Amount"].sum().reset_index()
+    fig3 = px.pie(cat, names="Category", values="Amount", title="Category Expense")
+    st.plotly_chart(fig3, use_container_width=True)
+
+    # =====================
+    # DAILY TREND
+    # =====================
+    daily = filtered_df.groupby(filtered_df["Date"].dt.date)["Amount"].sum().reset_index()
+    fig4 = px.line(daily, x="Date", y="Amount", title="Daily Spending")
+    st.plotly_chart(fig4, use_container_width=True)
+
+    # =====================
+    # DATA TABLE
+    # =====================
+    st.subheader("📋 Full Data")
+    st.dataframe(df.sort_values(by="Date", ascending=False), height=400)
 
 else:
     st.info("No data yet")
+
