@@ -35,7 +35,24 @@ with st.form("entry_form"):
         amount = st.number_input("Amount", min_value=1)
         interest = st.number_input("Interest %", min_value=0)
 
-    category = st.text_input("Category")
+    # 🔥 CATEGORY DROPDOWN + NEW
+    default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Business","Other"]
+
+    if not df.empty:
+        existing_categories = df["Category"].dropna().unique().tolist()
+    else:
+        existing_categories = []
+
+    all_categories = list(set(default_categories + existing_categories))
+    all_categories.sort()
+
+    category_option = st.selectbox("Category", all_categories + ["➕ Add New Category"])
+
+    if category_option == "➕ Add New Category":
+        category = st.text_input("Enter New Category")
+    else:
+        category = category_option
+
     subtype = st.text_input("Sub-Type")
     person = st.text_input("Person")
     desc = st.text_input("Description")
@@ -43,21 +60,23 @@ with st.form("entry_form"):
     submitted = st.form_submit_button("Add")
 
     if submitted:
-        new = pd.DataFrame([{
-            "Date": date,
-            "Type": type_,
-            "Category": category,
-            "SubType": subtype,
-            "Person": person,
-            "Amount": amount,
-            "Interest": interest,
-            "Description": desc
-        }])
+        if not category:
+            st.error("Category required")
+        else:
+            new = pd.DataFrame([{
+                "Date": date,
+                "Type": type_,
+                "Category": category,
+                "SubType": subtype,
+                "Person": person,
+                "Amount": amount,
+                "Interest": interest,
+                "Description": desc
+            }])
 
-        df = pd.concat([df,new],ignore_index=True)
-        df.to_csv(FILE,index=False)
-        st.success("✅ Added")
-
+            df = pd.concat([df,new],ignore_index=True)
+            df.to_csv(FILE,index=False)
+            st.success("✅ Added")
 
 # =====================
 # DASHBOARD
@@ -71,11 +90,12 @@ if not df.empty:
     expense_total = df[df["Type"]=="Expense"]["Amount"].sum()
     income_total = df[df["Type"]=="Income"]["Amount"].sum()
 
-    st.metric("Expense", f"₹{int(expense_total)}")
-    st.metric("Income", f"₹{int(income_total)}")
+    c1, c2 = st.columns(2)
+    c1.metric("Expense", f"₹{int(expense_total)}")
+    c2.metric("Income", f"₹{int(income_total)}")
 
     # =====================
-    # YEARLY
+    # YEARLY CHART
     # =====================
     df["Year"] = df["Date"].dt.year
     yearly = df[df["Type"]=="Expense"].groupby("Year")["Amount"].sum().reset_index()
@@ -88,7 +108,7 @@ if not df.empty:
     # =====================
     st.subheader("📋 Full Data (Edit / Delete)")
 
-    df_display = df.sort_values(by="Date", ascending=False).reset_index(drop=True)
+    df_display = df.sort_values(by="Date", ascending=False).reset_index()
 
     selected_row = st.selectbox(
         "Select Entry",
@@ -103,7 +123,7 @@ if not df.empty:
     # DELETE
     with col1:
         if st.button("❌ Delete"):
-            real_index = df_display.index[selected_row]
+            real_index = df_display.loc[selected_row, "index"]
             df = df.drop(real_index)
             df.to_csv(FILE, index=False)
             st.success("Deleted")
@@ -130,7 +150,7 @@ if not df.empty:
         new_amount = st.number_input("Amount", value=int(edit_data["Amount"]))
 
         if st.button("💾 Save Changes"):
-            real_index = df_display.index[edit_idx]
+            real_index = df_display.loc[edit_idx, "index"]
 
             df.loc[real_index, "Date"] = new_date
             df.loc[real_index, "Type"] = new_type
@@ -146,4 +166,5 @@ if not df.empty:
 
 else:
     st.info("No data yet")
+
 
