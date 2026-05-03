@@ -241,3 +241,43 @@ if not df.empty:
 else:
     st.info("No data yet")
 
+
+# =====================
+# 🗑️ DELETE ENTRY (IMPROVED UI)
+# =====================
+st.subheader("🗑️ Delete Entry")
+
+if not df.empty:
+
+    # Readable dropdown (date + category + amount)
+    delete_options = df.apply(
+        lambda x: f"{x['Date']} | {x['Category']} | ₹{x['Amount']}", axis=1
+    )
+
+    selected_entry = st.selectbox("Select Entry to Delete", delete_options)
+
+    if st.button("❌ Delete Selected Entry"):
+
+        # Extract values
+        date_val = selected_entry.split(" | ")[0]
+        category_val = selected_entry.split(" | ")[1]
+        amount_val = float(selected_entry.split(" | ₹")[1])
+
+        # Find index
+        index = df[
+            (df["Date"].astype(str) == date_val) &
+            (df["Category"] == category_val) &
+            (df["Amount"] == amount_val)
+        ].index
+
+        if len(index) > 0:
+            df = df.drop(index[0])
+            df.to_csv(FILE, index=False)
+            st.success("✅ Entry Deleted")
+            st.rerun()
+        else:
+            st.error("❌ Entry not found")
+
+else:
+    st.info("No data to delete")
+
