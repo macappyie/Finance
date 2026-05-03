@@ -64,7 +64,7 @@ with st.form("entry_form"):
         interest = st.number_input("Interest %", min_value=0)
 
     # 🔥 UPDATED CATEGORY (Business added)
-    default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Business","Other"]
+    default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Business","Poli Bhaji Kendra","Dominos","KFC","Movie","Kirana","Waste","Other"]
 
     if not df.empty:
         existing_categories = df["Category"].dropna().unique().tolist()
