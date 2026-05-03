@@ -50,10 +50,6 @@ else:
 # =====================
 # ADD ENTRY
 # =====================
-
-# =====================
-# ADD ENTRY
-# =====================
 st.subheader("➕ Add Entry")
 
 with st.form("entry_form"):
@@ -67,10 +63,8 @@ with st.form("entry_form"):
         amount = st.number_input("Amount", min_value=1)
         interest = st.number_input("Interest %", min_value=0)
 
-    # =====================
-    # 🔥 DYNAMIC CATEGORY SYSTEM
-    # =====================
-    default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Other"]
+    # 🔥 UPDATED CATEGORY (Business added)
+    default_categories = ["Food","Travel","Petrol","Shopping","Bills","Maintenance","Legal","EMI","Investment","Salary","Trading","Business","Other"]
 
     if not df.empty:
         existing_categories = df["Category"].dropna().unique().tolist()
@@ -84,11 +78,7 @@ with st.form("entry_form"):
 
     if category_option == "➕ Add New Category":
         new_category = st.text_input("Enter New Category")
-
-        if new_category:
-            category = new_category
-        else:
-            category = "Other"
+        category = new_category if new_category else "Other"
     else:
         category = category_option
 
@@ -113,7 +103,6 @@ with st.form("entry_form"):
         df = pd.concat([df,new],ignore_index=True)
         df.to_csv(FILE,index=False)
         st.success("✅ Added")
-
 
 # =====================
 # 🌍 LIVE ECONOMIC DATA
@@ -163,6 +152,31 @@ if not df.empty:
     col4.metric("💰 Income", f"₹{income_total}")
     col5.metric("📊 Balance", f"₹{int(balance)}")
 
+    # =====================
+    # 💼 BUSINESS / TRADING SUMMARY
+    # =====================
+    st.subheader("💼 Trading / Business Summary")
+
+    business_income = df[
+        (df["Type"]=="Income") &
+        (df["Category"].isin(["Business","Trading"]))
+    ]["Amount"].sum()
+
+    business_loss = df[
+        (df["Type"]=="Expense") &
+        (df["Category"].isin(["Business","Trading"]))
+    ]["Amount"].sum()
+
+    net_business = business_income - business_loss
+
+    b1, b2, b3 = st.columns(3)
+    b1.metric("💰 Business Profit", f"₹{business_income}")
+    b2.metric("📉 Business Loss", f"₹{business_loss}")
+    b3.metric("📊 Net Business", f"₹{net_business}")
+
+    # =====================
+    # CHARTS
+    # =====================
     col1,col2 = st.columns(2)
 
     with col1:
@@ -217,4 +231,3 @@ if not df.empty:
 
 else:
     st.info("No data yet")
-
