@@ -25,6 +25,76 @@ CREATE TABLE IF NOT EXISTS finance (
 )
 ''')
 
+conn.commit()
+
+# =====================
+# STREAMLIT CONFIG
+# =====================
+st.set_page_config(page_title="Finance Master Dashboard", layout="wide")
+st.title("💰 Finance Master Dashboard")
+
+# =====================
+# LIVE ECONOMIC DATA
+# =====================
+def get_economic_data():
+    try:
+        url = "https://api.tradingeconomics.com/indicators/country/india?c=guest:guest"
+        res = requests.get(url, timeout=5)
+        data = res.json()
+
+        repo = 6.5
+        inflation = 5.1
+        gdp = 6.7
+
+        for item in data:
+            if item["Category"] == "Interest Rate":
+                repo = item["LatestValue"]
+            elif item["Category"] == "Inflation Rate":
+                inflation = item["LatestValue"]
+            elif item["Category"] == "GDP Annual Growth Rate":
+                gdp = item["LatestValue"]
+
+        return repo, inflation, gdp
+
+    except:
+        return 6.5, 5.1, 6.7
+
+
+# =====================
+# LOAD DATA
+# =====================
+def load_data():
+    query = "SELECT * FROM finance ORDER BY id DESC"
+    return pd.read_sql(query, conn)
+
+# =====================
+# ADD ENTRY
+# =====================
+st.subheader("➕ Add Entry")
+
+with st.form("entry_form"):
+    col1, col2 = st.columns(2)
+
+    with col1:
+        date = st.date_input("Date")
+        type_ = st.selectbox(
+            "Type",
+            ["Expense", "Income", "EMI", "Investment", "Lending", "Borrow", "Trading"]
+        )
+
+    with col2:
+        amount = st.number_input("Amount", min_value=0.0, value=0.0)
+        interest = st.number_input("Interest %", min_value=0.0, value=0.0)
+
+    if type_ == "Trading":
+        category = st.selectbox("Category", ["Profit", "Loss"])
+    else:
+        categories = [
+            "Food", "Travel", "Petrol", "Shopping", "Bills",
+            "Maintenance", "EMI", "Investment", "Salary",
+            "Business", "Movie", "Kirana", "Other"
+        ]
+
         category = st.selectbox("Category", categories)
 
     subtype = st.text_input("Sub-Type")
@@ -66,6 +136,55 @@ st.subheader("🌍 Live Economic Data (India)")
 repo, inflation, gdp = get_economic_data()
 
 c1, c2, c3 = st.columns(3)
+c1.metric("🏦 Repo Rate", f"{repo}%")
+c2.metric("📈 Inflation", f"{inflation}%")
+c3.metric("📊 GDP Growth", f"{gdp}%")
+
+# =====================
+# DASHBOARD
+# =====================
+if not df.empty:
+
+    expense_total = df[df["Type"] == "Expense"]["Amount"].sum()
+    emi_total = df[df["Type"] == "EMI"]["Amount"].sum()
+    investment_total = df[df["Type"] == "Investment"]["Amount"].sum()
+    income_total = df[df["Type"] == "Income"]["Amount"].sum()
+
+    balance = income_total - (
+        expense_total + emi_total + investment_total
+    )
+
+    st.subheader("📊 Dashboard")
+
+    if balance < 0:
+        st.warning("⚠️ LOSS चल रहा है")
+
+    d1, d2, d3, d4, d5 = st.columns(5)
+
+    d1.metric("💸 Expense", f"₹{expense_total:,.0f}")
+    d2.metric("🏦 EMI", f"₹{emi_total:,.0f}")
+    d3.metric("📈 Investment", f"₹{investment_total:,.0f}")
+    d4.metric("💰 Income", f"₹{income_total:,.0f}")
+    d5.metric("📊 Balance", f"₹{balance:,.0f}")
+
+    # =====================
+    # TRADING SUMMARY
+    # =====================
+    st.subheader("💼 Trading Summary")
+
+    trading_profit = df[
+        (df["Type"] == "Trading") &
+        (df["Category"] == "Profit")
+    ]["Amount"].sum()
+
+    trading_loss = df[
+        (df["Type"] == "Trading") &
+        (df["Category"] == "Loss")
+    ]["Amount"].sum()
+
+    net_trading = trading_profit - trading_loss
+
+    t1, t2, t3 = st.columns(3)
     t1.metric("💰 Trading Profit", f"₹{trading_profit:,.0f}")
     t2.metric("📉 Trading Loss", f"₹{trading_loss:,.0f}")
     t3.metric("📊 Net Trading", f"₹{net_trading:,.0f}")
@@ -122,3 +241,4 @@ c1, c2, c3 = st.columns(3)
 
 else:
     st.info("No data yet")
+
