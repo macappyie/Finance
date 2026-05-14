@@ -103,6 +103,8 @@ default_categories = [
     "Business",
     "Movie",
     "Kirana",
+    "Borrower Person",
+    "Lending Person",
     "Other"
 ]
 
