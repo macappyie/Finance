@@ -30,11 +30,7 @@ conn.commit()
 # =====================
 # STREAMLIT CONFIG
 # =====================
-st.set_page_config(
-    page_title="Finance Master Dashboard",
-    layout="wide"
-)
-
+st.set_page_config(page_title="Finance Master Dashboard", layout="wide")
 st.title("💰 Finance Master Dashboard")
 
 # =====================
@@ -43,9 +39,7 @@ st.title("💰 Finance Master Dashboard")
 def get_economic_data():
     try:
         url = "https://api.tradingeconomics.com/indicators/country/india?c=guest:guest"
-
         res = requests.get(url, timeout=5)
-
         data = res.json()
 
         repo = 6.5
@@ -53,13 +47,10 @@ def get_economic_data():
         gdp = 6.7
 
         for item in data:
-
             if item["Category"] == "Interest Rate":
                 repo = item["LatestValue"]
-
             elif item["Category"] == "Inflation Rate":
                 inflation = item["LatestValue"]
-
             elif item["Category"] == "GDP Annual Growth Rate":
                 gdp = item["LatestValue"]
 
@@ -76,161 +67,46 @@ def load_data():
     query = "SELECT * FROM finance ORDER BY id DESC"
     return pd.read_sql(query, conn)
 
-
-# =====================
-# DEFAULT TYPES/CATEGORIES
-# =====================
-default_types = [
-    "Expense",
-    "Income",
-    "EMI",
-    "Investment",
-    "Lending",
-    "Borrow",
-    "Trading"
-]
-
-default_categories = [
-    "Food",
-    "Travel",
-    "Petrol",
-    "Shopping",
-    "Bills",
-    "Maintenance",
-    "EMI",
-    "Investment",
-    "Salary",
-    "Business",
-    "Movie",
-    "Kirana",
-    "Other"
-]
-
-# =====================
-# SESSION STORAGE
-# =====================
-if "custom_types" not in st.session_state:
-    st.session_state.custom_types = []
-
-if "custom_categories" not in st.session_state:
-    st.session_state.custom_categories = []
-
-all_types = default_types + st.session_state.custom_types
-all_categories = default_categories + st.session_state.custom_categories
-
 # =====================
 # ADD ENTRY
 # =====================
 st.subheader("➕ Add Entry")
 
-# =====================
-# ADD NEW TYPE
-# =====================
-with st.expander("➕ Add New Type"):
-
-    new_type = st.text_input("New Type")
-
-    if st.button("Save Type"):
-
-        if new_type.strip() != "":
-
-            if new_type not in st.session_state.custom_types:
-
-                st.session_state.custom_types.append(new_type)
-
-                st.success(f"✅ {new_type} Added")
-
-                st.rerun()
-
-# =====================
-# ADD NEW CATEGORY
-# =====================
-with st.expander("➕ Add New Category"):
-
-    new_category = st.text_input("New Category")
-
-    if st.button("Save Category"):
-
-        if new_category.strip() != "":
-
-            if new_category not in st.session_state.custom_categories:
-
-                st.session_state.custom_categories.append(new_category)
-
-                st.success(f"✅ {new_category} Added")
-
-                st.rerun()
-
-# =====================
-# ENTRY FORM
-# =====================
 with st.form("entry_form"):
-
     col1, col2 = st.columns(2)
 
     with col1:
-
         date = st.date_input("Date")
-
         type_ = st.selectbox(
             "Type",
-            all_types
+            ["Expense", "Income", "EMI", "Investment", "Lending", "Borrow", "Trading"]
         )
 
     with col2:
+        amount = st.number_input("Amount", min_value=0.0, value=0.0)
+        interest = st.number_input("Interest %", min_value=0.0, value=0.0)
 
-        amount = st.number_input(
-            "Amount",
-            min_value=0.0,
-            value=0.0
-        )
-
-        interest = st.number_input(
-            "Interest %",
-            min_value=0.0,
-            value=0.0
-        )
-
-    # CATEGORY
     if type_ == "Trading":
-
-        category = st.selectbox(
-            "Category",
-            ["Profit", "Loss"]
-        )
-
+        category = st.selectbox("Category", ["Profit", "Loss"])
     else:
+        categories = [
+            "Food", "Travel", "Petrol", "Shopping", "Bills",
+            "Maintenance", "EMI", "Investment", "Salary",
+            "Business", "Movie", "Kirana", "Other"
+        ]
 
-        category = st.selectbox(
-            "Category",
-            all_categories
-        )
+        category = st.selectbox("Category", categories)
 
     subtype = st.text_input("Sub-Type")
-
     person = st.text_input("Person")
-
     desc = st.text_input("Description")
 
     submitted = st.form_submit_button("Add")
 
-    # =====================
-    # SAVE ENTRY
-    # =====================
     if submitted:
-
         cursor.execute('''
         INSERT INTO finance
-        (
-            Date,
-            Type,
-            Category,
-            SubType,
-            Person,
-            Amount,
-            Interest,
-            Description
-        )
+        (Date, Type, Category, SubType, Person, Amount, Interest, Description)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             str(date),
@@ -244,24 +120,22 @@ with st.form("entry_form"):
         ))
 
         conn.commit()
-
         st.success("✅ Added Successfully")
-
         st.rerun()
+
 # =====================
 # LOAD DATAFRAME
 # =====================
 df = load_data()
 
 # =====================
-# LIVE ECONOMIC DATA
+# ECONOMIC DATA
 # =====================
 st.subheader("🌍 Live Economic Data (India)")
 
 repo, inflation, gdp = get_economic_data()
 
 c1, c2, c3 = st.columns(3)
-
 c1.metric("🏦 Repo Rate", f"{repo}%")
 c2.metric("📈 Inflation", f"{inflation}%")
 c3.metric("📊 GDP Growth", f"{gdp}%")
@@ -271,26 +145,13 @@ c3.metric("📊 GDP Growth", f"{gdp}%")
 # =====================
 if not df.empty:
 
-    expense_total = df[
-        df["Type"] == "Expense"
-    ]["Amount"].sum()
-
-    emi_total = df[
-        df["Type"] == "EMI"
-    ]["Amount"].sum()
-
-    investment_total = df[
-        df["Type"] == "Investment"
-    ]["Amount"].sum()
-
-    income_total = df[
-        df["Type"] == "Income"
-    ]["Amount"].sum()
+    expense_total = df[df["Type"] == "Expense"]["Amount"].sum()
+    emi_total = df[df["Type"] == "EMI"]["Amount"].sum()
+    investment_total = df[df["Type"] == "Investment"]["Amount"].sum()
+    income_total = df[df["Type"] == "Income"]["Amount"].sum()
 
     balance = income_total - (
-        expense_total +
-        emi_total +
-        investment_total
+        expense_total + emi_total + investment_total
     )
 
     st.subheader("📊 Dashboard")
@@ -324,21 +185,9 @@ if not df.empty:
     net_trading = trading_profit - trading_loss
 
     t1, t2, t3 = st.columns(3)
-
-    t1.metric(
-        "💰 Trading Profit",
-        f"₹{trading_profit:,.0f}"
-    )
-
-    t2.metric(
-        "📉 Trading Loss",
-        f"₹{trading_loss:,.0f}"
-    )
-
-    t3.metric(
-        "📊 Net Trading",
-        f"₹{net_trading:,.0f}"
-    )
+    t1.metric("💰 Trading Profit", f"₹{trading_profit:,.0f}")
+    t2.metric("📉 Trading Loss", f"₹{trading_loss:,.0f}")
+    t3.metric("📊 Net Trading", f"₹{net_trading:,.0f}")
 
     # =====================
     # CHARTS
@@ -346,32 +195,19 @@ if not df.empty:
     col1, col2 = st.columns(2)
 
     with col1:
-
         pie = px.pie(
-            df[
-                df["Type"].isin(
-                    ["Expense", "EMI", "Investment"]
-                )
-            ],
+            df[df["Type"].isin(["Expense", "EMI", "Investment"])],
             names="Category",
             values="Amount",
             title="Money Distribution"
         )
 
-        st.plotly_chart(
-            pie,
-            use_container_width=True
-        )
+        st.plotly_chart(pie, use_container_width=True)
 
     with col2:
+        df["Month"] = pd.to_datetime(df["Date"]).dt.to_period("M").astype(str)
 
-        df["Month"] = pd.to_datetime(
-            df["Date"]
-        ).dt.to_period("M").astype(str)
-
-        monthly = df.groupby(
-            ["Month", "Type"]
-        )["Amount"].sum().reset_index()
+        monthly = df.groupby(["Month", "Type"])["Amount"].sum().reset_index()
 
         bar = px.bar(
             monthly,
@@ -381,43 +217,27 @@ if not df.empty:
             title="Monthly Flow"
         )
 
-        st.plotly_chart(
-            bar,
-            use_container_width=True
-        )
+        st.plotly_chart(bar, use_container_width=True)
 
     # =====================
     # DELETE ENTRY
     # =====================
     st.subheader("🗑️ Delete Entry")
 
-    delete_id = st.selectbox(
-        "Select ID",
-        df["id"]
-    )
+    delete_id = st.selectbox("Select ID", df["id"])
 
     if st.button("Delete Selected Entry"):
-
-        cursor.execute(
-            "DELETE FROM finance WHERE id=?",
-            (int(delete_id),)
-        )
-
+        cursor.execute("DELETE FROM finance WHERE id=?", (int(delete_id),))
         conn.commit()
 
         st.success("✅ Deleted")
-
         st.rerun()
 
     # =====================
     # SHOW DATA
     # =====================
     st.subheader("📋 All Data")
-
-    st.dataframe(
-        df,
-        use_container_width=True
-    )
+    st.dataframe(df)
 
 else:
     st.info("No data yet")
